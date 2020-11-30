@@ -1,4 +1,4 @@
-### Ryu控制器在1.5T服务器上的实验学习：
+### Ryu控制器在1.5T服务器上的实验：
 
 首先需要一个闲置的浮动ip和一个闲置的蜜罐进行实验，找到1.5T服务器上一个蜜罐”uk38“
 
@@ -212,7 +212,7 @@ ovs-ofctl add-flow fptest-br table=45,priority=30,ip,in_port=$ex_port,nw_dst=$fi
 ovs-ofctl add-flow fptest-br table=50,priority=30,ip,in_port=$ex_port,nw_dst=$pod_ip,actions=output:$veth_num
 # 表50，匹配由veth port为1102且目标ip为容器IP进入表的包，修改由指定的作为veth pair的id转发出去
 ovs-ofctl  add-flow  fptest-br table=60,priority=30,ip,nw_src=$pod_ip,actions=mod_dl_src:$fip_mac,mod_dl_dst:38:ad:8e:df:a0:65,dec_ttl,mod_nw_src:$fip,resubmit\(,40\)
-# 表60，匹配源ip为容器ip进入表的包，修改源MAC为浮动ip的MAC地址，修改目的MAC为38:ad:8e:df:a0:65，ttl自减，修改源ip为浮动ip，且resubmit到表40
+# 表60，匹配源ip为容器ip进入表的包，修改源MAC为浮动ip的MAC地址，修改目的MAC为38:ad:8e:df:a0:65（实验室网关），ttl自减，修改源ip为浮动ip，且resubmit到表40
 ovs-ofctl add-flow fptest-br table=50,priority=30,ip,nw_src=$fip,actions=output:$ex_port
 # 表50，匹配源ip为浮动ip进入表的包，修改由指定的网卡出口转发出去
 ```
@@ -231,3 +231,20 @@ cookie=0x0, duration=52.325s, table=45, n_packets=12, n_bytes=1061, idle_age=1, 
 缺少内部网络流向的包，这样的包都被转走了：
 
 *cookie=0x0, duration=52.303s, table=60, n_packets=11, n_bytes=1001, idle_age=4, priority=30,ip,nw_src=10.244.18.2 actions=mod_dl_src:**06:c4:b5:80:fc:24**,mod_dl_dst:**38:ad:8e:df:a0:65**,dec_ttl,mod_nw_src:**202.117.54.235**,resubmit(,40)*
+
+
+
+ex_port=$1
+fip=$2
+veth_mac=$3
+pod_mac=$4
+veth_num=$5
+pod_ip=$6
+
+ovs-ofctl add-flow fptest-br table=45,priority=30,ip,in_port=$ex_port,nw_dst=$fip,actions=mod_dl_dst:$pod_mac,mod_dl_src:$veth_mac,Dec_TTL,mod_nw_dst=$pod_ip,resubmit\(,40\)
+ovs-ofctl add-flow fptest-br table=50,priority=30,ip,in_port=$ex_port,nw_dst=$pod_ip,actions=output:$veth_num
+ovs-ofctl add-flow fptest-br table=60,priority=30,ip,nw_src=$pod_ip,actions=mod_dl_src:06:c4:b5:80:fc:24,mod_dl_dst:38:ad:8e:df:a0:65,dec_ttl,mod_nw_src:$fip,resubmit\(,40\)
+ovs-ofctl add-flow fptest-br table=50,priority=30,ip,nw_src=$fip,actions=output:$ex_port
+
+ovs-ofctl add-flow fptest-br table=50,priority=30,ip,in_port=$ex_port
+
